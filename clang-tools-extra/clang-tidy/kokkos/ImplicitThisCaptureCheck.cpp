@@ -39,16 +39,15 @@ llvm::Optional<SourceLocation> capturesThis(CXXRecordDecl const *CRD) {
 
 } // namespace
 
-ImplicitThisCaptureCheck::ImplicitThisCaptureCheck(
-    StringRef Name, ClangTidyContext *Context)
+ImplicitThisCaptureCheck::ImplicitThisCaptureCheck(StringRef Name,
+                                                   ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context) {
   CheckIfExplicitHost = std::stoi(Options.get("CheckIfExplicitHost", "0"));
   HostTypeDefRegex =
       Options.get("HostTypeDefRegex", "Kokkos::DefaultHostExecutionSpace");
 }
 
-void ImplicitThisCaptureCheck::storeOptions(
-    ClangTidyOptions::OptionMap &Opts) {
+void ImplicitThisCaptureCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
   Options.store(Opts, "CheckIfExplicitHost",
                 std::to_string(CheckIfExplicitHost));
   Options.store(Opts, "HostTypeDefRegex", HostTypeDefRegex);
@@ -56,20 +55,18 @@ void ImplicitThisCaptureCheck::storeOptions(
 
 void ImplicitThisCaptureCheck::registerMatchers(MatchFinder *Finder) {
   auto isAllowedPolicy = expr(hasType(
-      cxxRecordDecl(matchesName("::Impl::ThreadVectorRangeBoundariesStruct.*|::"
-                                "Impl::TeamThreadRangeBoundariesStruct.*"))));
+      cxxRecordDecl(matchesName("::Impl::ThreadVectorRangeBoundariesStruct.*|"
+                                "::Impl::TeamThreadRangeBoundariesStruct.*"))));
 
   auto Lambda = expr(hasType(cxxRecordDecl(isLambda()).bind("Lambda")));
 
-  Finder->addMatcher(
-      callExpr(isKokkosParallelCall(),
-               hasAnyArgument(Lambda), unless(hasAnyArgument(isAllowedPolicy)))
-          .bind("x"),
-      this);
+  Finder->addMatcher(callExpr(isKokkosParallelCall(), hasAnyArgument(Lambda),
+                              unless(hasAnyArgument(isAllowedPolicy)))
+                         .bind("x"),
+                     this);
 }
 
-void ImplicitThisCaptureCheck::check(
-    const MatchFinder::MatchResult &Result) {
+void ImplicitThisCaptureCheck::check(const MatchFinder::MatchResult &Result) {
   auto const *CE = Result.Nodes.getNodeAs<CallExpr>("x");
 
   if (CheckIfExplicitHost) {
@@ -85,7 +82,6 @@ void ImplicitThisCaptureCheck::check(
         << CE->getDirectCallee()->getName();
     diag(CaptureLocation.getValue(), "the captured variable is used here.",
          DiagnosticIDs::Note);
-    diag(CE->getBeginLoc(), "Kokkos call here.", DiagnosticIDs::Note);
   }
 }
 
