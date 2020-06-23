@@ -183,6 +183,7 @@ Clang-Tidy Checks
    `hicpp-multiway-paths-covered <hicpp-multiway-paths-covered.html>`_,
    `hicpp-no-assembler <hicpp-no-assembler.html>`_,
    `hicpp-signed-bitwise <hicpp-signed-bitwise.html>`_,
+   `kokkos-ensure-kokkos-function <kokkos-ensure-kokkos-function.html>`_,
    `kokkos-implicit-this-capture <kokkos-implicit-this-capture.html>`_,
    `linuxkernel-must-use-errs <linuxkernel-must-use-errs.html>`_,
    `llvm-header-guard <llvm-header-guard.html>`_,
