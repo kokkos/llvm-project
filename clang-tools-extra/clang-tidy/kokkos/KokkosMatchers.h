@@ -33,8 +33,8 @@ AST_MATCHER(CallExpr, isKokkosParallelCall) {
   if (auto const *FD = Node.getDirectCallee()) {
     std::string Name = FD->getQualifiedNameAsString();
     StringRef SR(Name);
-    if (SR.startswith("::Kokkos::parallel_") ||
-        SR.startswith("Kokkos::parallel_")) {
+    if (SR.startswith("Kokkos::parallel_") ||
+        SR.startswith("::Kokkos::parallel_")) {
       return true;
     }
   }

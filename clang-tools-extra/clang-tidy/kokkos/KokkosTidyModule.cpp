@@ -13,6 +13,7 @@
 #include "../ClangTidy.h"
 #include "../ClangTidyModule.h"
 #include "../ClangTidyModuleRegistry.h"
+#include "EnsureKokkosFunctionCheck.h"
 #include "ImplicitThisCaptureCheck.h"
 
 namespace clang {
@@ -22,6 +23,8 @@ namespace kokkos {
 class KokkosModule : public ClangTidyModule {
 public:
   void addCheckFactories(ClangTidyCheckFactories &CheckFactories) override {
+    CheckFactories.registerCheck<EnsureKokkosFunctionCheck>(
+        "kokkos-ensure-kokkos-function");
     CheckFactories.registerCheck<ImplicitThisCaptureCheck>(
         "kokkos-implicit-this-capture");
   }
