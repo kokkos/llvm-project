@@ -24,8 +24,10 @@ bool explicitlyUsingHostExecutionSpace(CallExpr const *CE,
   // We will assume that any policy where the user might explicitly ask for the
   // host space inherits from Impl::PolicyTraits
   auto FilterArgs =
-      hasAnyArgument(expr(hasType(cxxRecordDecl(isDerivedFrom(cxxRecordDecl(
-                              matchesName("Impl::PolicyTraits"))))))
+      hasAnyArgument(expr(hasType(classTemplateSpecializationDecl(
+                                      isDerivedFrom(cxxRecordDecl(
+                                          matchesName("Impl::PolicyTraits"))))
+                                      .bind("Policy")))
                          .bind("expr"));
 
   // We have to jump through some hoops to find this, if we just looked at the
@@ -35,12 +37,23 @@ bool explicitlyUsingHostExecutionSpace(CallExpr const *CE,
   // actually asked for a host space specifically or just happens to have a
   // host space as the default space.
   llvm::Regex Reg(RegexString);
-  auto BNs = match(callExpr(FilterArgs).bind("CE"), *CE, Ctx);
+  auto BNs = match(callExpr(FilterArgs), *CE, Ctx);
   for (auto &BN : BNs) {
     if (auto const *E = BN.getNodeAs<Expr>("expr")) {
       if (auto const *TST = E->getType()->getAs<TemplateSpecializationType>()) {
-        if (Reg.match(TST->getArg(0).getAsType().getAsString())) {
-          return true;
+        for (auto const &TA : TST->template_arguments()) {
+          if (auto const *TDT = TA.getAsType()->getAs<TypedefType>()) {
+            if (auto const *TDD = TDT->getDecl()) {
+              for (auto const *Attr : TDD->attrs()) {
+                if (auto const *Anna = dyn_cast<AnnotateAttr>(Attr)) {
+                  if (Anna->getAnnotation().equals(
+                          "DefaultHostExecutionSpace")) {
+                    return true;
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }

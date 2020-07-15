@@ -42,6 +42,20 @@ AST_MATCHER(CallExpr, isKokkosParallelCall) {
   return false;
 }
 
+AST_MATCHER_P(Decl, matchesAttr, std::string, RegExp) {
+  using namespace clang::ast_matchers;
+  assert(!RegExp.empty());
+  llvm::Regex Re(RegExp);
+  for (auto const *Attr : Node.attrs()) {
+    if (auto const *Anna = dyn_cast<AnnotateAttr>(Attr)) {
+      if (Re.match(Anna->getAnnotation())) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 bool explicitlyUsingHostExecutionSpace(CallExpr const *CE,
                                        std::string const &RegexString);
 

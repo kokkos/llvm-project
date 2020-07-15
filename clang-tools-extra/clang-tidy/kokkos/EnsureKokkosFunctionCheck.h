@@ -22,10 +22,14 @@ namespace kokkos {
 /// Check that ensures user provided functions were properly annotated
 class EnsureKokkosFunctionCheck : public ClangTidyCheck {
 public:
-  EnsureKokkosFunctionCheck(StringRef Name, ClangTidyContext *Context)
-      : ClangTidyCheck(Name, Context) {}
+  EnsureKokkosFunctionCheck(StringRef Name, ClangTidyContext *Context);
   void registerMatchers(ast_matchers::MatchFinder *Finder) override;
   void check(const ast_matchers::MatchFinder::MatchResult &Result) override;
+  void storeOptions(ClangTidyOptions::OptionMap &Opts) override;
+
+private:
+  std::string AllowedFunctionsRegex;
+  int CheckIfExplicitHost;
 };
 
 } // namespace kokkos
