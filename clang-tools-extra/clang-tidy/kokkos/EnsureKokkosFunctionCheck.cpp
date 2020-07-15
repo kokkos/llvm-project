@@ -13,6 +13,9 @@
 
 using namespace clang::ast_matchers;
 
+namespace clang {
+namespace tidy {
+namespace kokkos {
 namespace {
 
 std::string KF_Regex = "KOKKOS_.*FUNCTION";
@@ -47,22 +50,18 @@ CallExpr const *checkLambdaBody(CXXRecordDecl const *Lambda,
 
 } // namespace
 
-namespace clang {
-namespace tidy {
-namespace kokkos {
-
 EnsureKokkosFunctionCheck::EnsureKokkosFunctionCheck(StringRef Name,
                                                      ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context) {
-  CheckIfExplicitHost = std::stoi(Options.get("CheckIfExplicitHost", "0"));
+  AllowIfExplicitHost = std::stoi(Options.get("AllowIfExplicitHost", "0"));
   AllowedFunctionsRegex = Options.get("AllowedFunctionsRegex", "");
 }
 
 void EnsureKokkosFunctionCheck::storeOptions(
     ClangTidyOptions::OptionMap &Opts) {
   Options.store(Opts, "AllowedFunctionsRegex", AllowedFunctionsRegex);
-  Options.store(Opts, "CheckIfExplicitHost",
-                std::to_string(CheckIfExplicitHost));
+  Options.store(Opts, "AllowIfExplicitHost",
+                std::to_string(AllowIfExplicitHost));
 }
 
 void EnsureKokkosFunctionCheck::registerMatchers(MatchFinder *Finder) {
@@ -109,8 +108,9 @@ void EnsureKokkosFunctionCheck::check(const MatchFinder::MatchResult &Result) {
         << CE->getDirectCallee();
   }
   if (Lambda != nullptr) {
-    auto const* CE = Result.Nodes.getNodeAs<CallExpr>("KokkosCE");
-    if(explicitlyUsingHostExecutionSpace(CE, "Hi")){
+    auto const *CE = Result.Nodes.getNodeAs<CallExpr>("KokkosCE");
+    if (AllowIfExplicitHost != 0 && explicitlyDefaultHostExecutionSpace(CE)) {
+      return;
     }
     auto const *BadCall = checkLambdaBody(Lambda, AllowedFunctionsRegex);
     if (BadCall) {

@@ -56,8 +56,7 @@ AST_MATCHER_P(Decl, matchesAttr, std::string, RegExp) {
   return false;
 }
 
-bool explicitlyUsingHostExecutionSpace(CallExpr const *CE,
-                                       std::string const &RegexString);
+bool explicitlyDefaultHostExecutionSpace(CallExpr const *CE);
 
 } // namespace kokkos
 } // namespace tidy

@@ -29,7 +29,7 @@ public:
 
 private:
   std::string AllowedFunctionsRegex;
-  int CheckIfExplicitHost;
+  int AllowIfExplicitHost;
 };
 
 } // namespace kokkos

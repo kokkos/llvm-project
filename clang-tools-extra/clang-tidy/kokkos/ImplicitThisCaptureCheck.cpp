@@ -42,15 +42,13 @@ llvm::Optional<SourceLocation> capturesThis(CXXRecordDecl const *CRD) {
 ImplicitThisCaptureCheck::ImplicitThisCaptureCheck(StringRef Name,
                                                    ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context) {
-  CheckIfExplicitHost = std::stoi(Options.get("CheckIfExplicitHost", "0"));
-  HostTypeDefRegex =
-      Options.get("HostTypeDefRegex", "Kokkos::DefaultHostExecutionSpace");
+  AllowIfExplicitHost = std::stoi(Options.get("AllowIfExplicitHost", "0"));
 }
 
-void ImplicitThisCaptureCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
-  Options.store(Opts, "CheckIfExplicitHost",
-                std::to_string(CheckIfExplicitHost));
-  Options.store(Opts, "HostTypeDefRegex", HostTypeDefRegex);
+void ImplicitThisCaptureCheck::storeOptions(
+    ClangTidyOptions::OptionMap &Opts) {
+  Options.store(Opts, "AllowIfExplicitHost",
+                std::to_string(AllowIfExplicitHost));
 }
 
 void ImplicitThisCaptureCheck::registerMatchers(MatchFinder *Finder) {
@@ -69,8 +67,8 @@ void ImplicitThisCaptureCheck::registerMatchers(MatchFinder *Finder) {
 void ImplicitThisCaptureCheck::check(const MatchFinder::MatchResult &Result) {
   auto const *CE = Result.Nodes.getNodeAs<CallExpr>("x");
 
-  if (CheckIfExplicitHost) {
-    if (explicitlyUsingHostExecutionSpace(CE, HostTypeDefRegex)) {
+  if (AllowIfExplicitHost != 0) {
+    if (explicitlyDefaultHostExecutionSpace(CE)) {
       return;
     }
   }
