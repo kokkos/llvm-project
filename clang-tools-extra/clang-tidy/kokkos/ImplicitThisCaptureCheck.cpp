@@ -68,7 +68,7 @@ void ImplicitThisCaptureCheck::check(const MatchFinder::MatchResult &Result) {
   auto const *CE = Result.Nodes.getNodeAs<CallExpr>("x");
 
   if (AllowIfExplicitHost != 0) {
-    if (explicitlyDefaultHostExecutionSpace(CE)) {
+    if (explicitDefaultHostExecutionSpace(CE)) {
       return;
     }
   }

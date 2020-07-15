@@ -81,15 +81,16 @@ void EnsureKokkosFunctionCheck::registerMatchers(MatchFinder *Finder) {
   // We have to be sure that we don't match functionDecls in systems headers,
   // because they might call our Functor, which if it is a lambda will not be
   // marked with KOKKOS_FUNCITON
-  Finder->addMatcher(functionDecl(matchesAttr(KF_Regex),
-                                  unless(isExpansionInSystemHeader()),
-                                  forEachDescendant(notKCalls))
+  Finder->addMatcher(functionDecl(matchesAttr(KF_Regex)
+                                  //,unless(isExpansionInSystemHeader())
+                                  ,forEachDescendant(notKCalls))
                          .bind("ParentFD"),
                      this);
 
-  auto Lambda = expr(hasType(cxxRecordDecl(isLambda()).bind("Lambda")));
+  // Need to check the Functor also
+  auto Functor = expr(hasType(cxxRecordDecl(isLambda()).bind("Functor")));
   Finder->addMatcher(
-      callExpr(isKokkosParallelCall(), hasAnyArgument(Lambda)).bind("KokkosCE"),
+      callExpr(isKokkosParallelCall(), hasAnyArgument(Functor)),
       this);
 }
 
@@ -109,7 +110,7 @@ void EnsureKokkosFunctionCheck::check(const MatchFinder::MatchResult &Result) {
   }
   if (Lambda != nullptr) {
     auto const *CE = Result.Nodes.getNodeAs<CallExpr>("KokkosCE");
-    if (AllowIfExplicitHost != 0 && explicitlyDefaultHostExecutionSpace(CE)) {
+    if (AllowIfExplicitHost != 0 && explicitDefaultHostExecutionSpace(CE)) {
       return;
     }
     auto const *BadCall = checkLambdaBody(Lambda, AllowedFunctionsRegex);
