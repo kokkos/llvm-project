@@ -45,8 +45,7 @@ ImplicitThisCaptureCheck::ImplicitThisCaptureCheck(StringRef Name,
   AllowIfExplicitHost = std::stoi(Options.get("AllowIfExplicitHost", "0"));
 }
 
-void ImplicitThisCaptureCheck::storeOptions(
-    ClangTidyOptions::OptionMap &Opts) {
+void ImplicitThisCaptureCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
   Options.store(Opts, "AllowIfExplicitHost",
                 std::to_string(AllowIfExplicitHost));
 }
@@ -68,7 +67,7 @@ void ImplicitThisCaptureCheck::check(const MatchFinder::MatchResult &Result) {
   auto const *CE = Result.Nodes.getNodeAs<CallExpr>("x");
 
   if (AllowIfExplicitHost != 0) {
-    if (explicitDefaultHostExecutionSpace(CE)) {
+    if (explicitlyDefaultHostExecutionSpace(CE)) {
       return;
     }
   }
