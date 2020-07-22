@@ -20,6 +20,13 @@ namespace {
 
 std::string KF_Regex = "KOKKOS_.*FUNCTION";
 
+bool isAnnotated(CXXMethodDecl const *Method) {
+  // If the method is annotated the match will not be empty
+  return !match(cxxMethodDecl(matchesAttr(KF_Regex)), *Method,
+                Method->getASTContext())
+              .empty();
+}
+
 CallExpr const *checkLambdaBody(CXXRecordDecl const *Lambda,
                                 std::string const &AllowedFuncRegex) {
   assert(Lambda->isLambda());
@@ -46,6 +53,52 @@ CallExpr const *checkLambdaBody(CXXRecordDecl const *Lambda,
   }
 
   return nullptr;
+}
+
+// Recurses through the tree of all calls to functions with visble bodies
+void recurseCallExpr(
+    llvm::SmallPtrSet<CXXMethodDecl const *, 8> const &FunctorMethods,
+    CallExpr const *Call,
+    llvm::SmallPtrSet<CXXMethodDecl const *, 4> &Results) {
+
+  // Get the body of the called function
+  auto const *CallDecl = Call->getCalleeDecl();
+  if (CallDecl == nullptr || !CallDecl->hasBody()) {
+    return;
+  }
+
+  auto &ASTContext = CallDecl->getASTContext();
+
+  // Check if the called function is a member function of the functor
+  // if yes then write the result back out.
+  if (auto const *Method = dyn_cast<CXXMethodDecl>(CallDecl)) {
+    if (FunctorMethods.count(Method) > 0) {
+      Results.insert(Method);
+    }
+  }
+
+  // Match all callexprs in out body
+  auto CEs = match(compoundStmt(forEachDescendant(callExpr().bind("CE"))),
+                   *(CallDecl->getBody()), ASTContext);
+
+  // Check all those calls for uses of members of the functor as well
+  for (auto BN : CEs) {
+    if (auto const *CE = BN.getNodeAs<CallExpr>("CE")) {
+      recurseCallExpr(FunctorMethods, CE, Results);
+    }
+  }
+}
+
+// Find methods from our functor called in the tree of Kokkos::parallel_x 
+auto checkFunctorBody(CXXRecordDecl const *Functor, CallExpr const *CallSite) {
+  llvm::SmallPtrSet<CXXMethodDecl const *, 8> FunctorMethods;
+  for (auto const *Method : Functor->methods()) {
+    FunctorMethods.insert(Method);
+  }
+  llvm::SmallPtrSet<CXXMethodDecl const *, 4> Results;
+  recurseCallExpr(FunctorMethods, CallSite, Results);
+
+  return Results;
 }
 
 } // namespace
@@ -125,10 +178,14 @@ void EnsureKokkosFunctionCheck::check(const MatchFinder::MatchResult &Result) {
             << BadCall->getDirectCallee();
       }
     } else {
-      for (auto const &Methd : Functor->methods()) {
-        if (!Methd->isImplicit()) {
-          Methd->dumpColor();
+      for (auto const *CalledMethod : checkFunctorBody(Functor, CE)) {
+        if (isAnnotated(CalledMethod)) {
+          continue;
         }
+
+        diag(CalledMethod->getBeginLoc(), "Member Function of %0, requires a "
+                                          "KOKKOS_X_FUNCTION annotation.")
+            << CalledMethod->getParent();
       }
     }
   }
