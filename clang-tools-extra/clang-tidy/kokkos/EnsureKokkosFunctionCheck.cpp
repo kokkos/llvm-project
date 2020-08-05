@@ -18,13 +18,41 @@ namespace tidy {
 namespace kokkos {
 namespace {
 
-std::string KF_Regex = "KOKKOS_.*FUNCTION";
+std::string KF_Regex = "KOKKOS_.*FUNCTION"; // NOLINT
+
+auto notKFunc(std::string const &AllowedFuncRegex) {
+  auto AllowedFuncMatch = [AFR = AllowedFuncRegex] {
+    if (AFR.empty()) {
+      return unless(matchesName("a^")); // Never match anything
+    }
+    return unless(matchesName(AFR));
+  }();
+
+  return functionDecl(unless(matchesAttr(KF_Regex)),
+                      unless(isExpansionInSystemHeader()), AllowedFuncMatch);
+}
 
 bool isAnnotated(CXXMethodDecl const *Method) {
   // If the method is annotated the match will not be empty
   return !match(cxxMethodDecl(matchesAttr(KF_Regex)), *Method,
                 Method->getASTContext())
               .empty();
+}
+
+// TODO one day we might want to check if the lambda is local to our current
+// function context, but until someone complains that's a lot of work. The
+// other case we aren't going to deal with is: void foo(){ struct S { static
+// void func(){} }; S::func(); }
+bool callExprIsToLambaOp(CallExpr const *CE) {
+  if (auto const *CMD =
+          dyn_cast_or_null<CXXMethodDecl>(CE->getDirectCallee())) {
+    if (auto const *Parent = CMD->getParent()) {
+      if (Parent->isLambda()) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 auto checkLambdaBody(CXXRecordDecl const *Lambda,
@@ -36,33 +64,16 @@ auto checkLambdaBody(CXXRecordDecl const *Lambda,
     return BadCallSet;
   }
 
-  auto AllowedFuncMatch = [AFR = AllowedFuncRegex] {
-    if (AFR.empty()) {
-      return unless(matchesName("a^")); // Never match anything
-    }
-    return unless(matchesName(AFR));
-  }();
-
-  auto notKFunc =
-      functionDecl(unless(matchesAttr(KF_Regex)),
-                   unless(isExpansionInSystemHeader()), AllowedFuncMatch);
-  auto notKCalls = callExpr(callee(notKFunc)).bind("CE");
+  auto notKCalls = // NOLINT
+      callExpr(callee(notKFunc(AllowedFuncRegex))).bind("CE");
 
   auto BadCalls = match(functionDecl(forEachDescendant(notKCalls)), *FD,
                         FD->getASTContext());
 
   for (auto BadCall : BadCalls) {
     auto const *CE = BadCall.getNodeAs<CallExpr>("CE");
-    if (!CE) {
+    if (callExprIsToLambaOp(CE)) { // function call handles nullptr
       continue;
-    }
-
-    if(auto const* CMD = dyn_cast<CXXMethodDecl>(CE->getDirectCallee())){
-      if(auto const* Parent = CMD->getParent()){
-        if(Parent->isLambda()){
-          continue;
-        }
-      }
     }
 
     BadCallSet.insert(CE);
@@ -93,7 +104,7 @@ void recurseCallExpr(
     }
   }
 
-  // Match all callexprs in out body
+  // Match all callexprs in our body
   auto CEs = match(compoundStmt(forEachDescendant(callExpr().bind("CE"))),
                    *(CallDecl->getBody()), ASTContext);
 
@@ -134,18 +145,8 @@ void EnsureKokkosFunctionCheck::storeOptions(
 }
 
 void EnsureKokkosFunctionCheck::registerMatchers(MatchFinder *Finder) {
-  auto AllowedFuncMatch = [AFR = AllowedFunctionsRegex] {
-    if (AFR.empty()) {
-      return unless(matchesName("a^")); // Never match anything
-    }
-    return unless(matchesName(AFR));
-  }();
-
-  auto notKFunc =
-      functionDecl(unless(matchesAttr(KF_Regex)),
-                   unless(isExpansionInSystemHeader()), AllowedFuncMatch);
-
-  auto notKCalls = callExpr(callee(notKFunc)).bind("CE");
+  auto notKCalls = // NOLINT
+      callExpr(callee(notKFunc(AllowedFunctionsRegex))).bind("CE");
 
   // We have to be sure that we don't match functionDecls in systems headers,
   // because they might call our Functor, which if it is a lambda will not be
@@ -171,6 +172,10 @@ void EnsureKokkosFunctionCheck::check(const MatchFinder::MatchResult &Result) {
   auto const *Functor = Result.Nodes.getNodeAs<CXXRecordDecl>("Functor");
 
   if (ParentFD != nullptr) {
+    if (callExprIsToLambaOp(CE)) { // Avoid false positives for local lambdas
+      return;
+    }
+
     diag(CE->getBeginLoc(),
          "function %0 called in %1 is missing a KOKKOS_X_FUNCTION annotation")
         << CE->getDirectCallee() << ParentFD;
