@@ -27,32 +27,48 @@ bool isAnnotated(CXXMethodDecl const *Method) {
               .empty();
 }
 
-CallExpr const *checkLambdaBody(CXXRecordDecl const *Lambda,
-                                std::string const &AllowedFuncRegex) {
+auto checkLambdaBody(CXXRecordDecl const *Lambda,
+                     std::string const &AllowedFuncRegex) {
   assert(Lambda->isLambda());
-
-  if (auto const *FD = Lambda->getLambdaCallOperator()) {
-    auto AllowedFuncMatch = [AFR = AllowedFuncRegex] {
-      if (AFR.empty()) {
-        return unless(matchesName("a^")); // Never match anything
-      }
-      return unless(matchesName(AFR));
-    }();
-    auto notKFunc =
-        functionDecl(unless(matchesAttr(KF_Regex)),
-                     unless(isExpansionInSystemHeader()), AllowedFuncMatch);
-
-    auto notKCalls = callExpr(callee(notKFunc)).bind("CE");
-
-    auto BadCalls = match(functionDecl(forEachDescendant(notKCalls)), *FD,
-                          FD->getASTContext());
-
-    if (!BadCalls.empty()) {
-      return selectFirst<CallExpr>("CE", BadCalls);
-    }
+  llvm::SmallPtrSet<CallExpr const *, 1> BadCallSet;
+  auto const *FD = Lambda->getLambdaCallOperator();
+  if (!FD) {
+    return BadCallSet;
   }
 
-  return nullptr;
+  auto AllowedFuncMatch = [AFR = AllowedFuncRegex] {
+    if (AFR.empty()) {
+      return unless(matchesName("a^")); // Never match anything
+    }
+    return unless(matchesName(AFR));
+  }();
+
+  auto notKFunc =
+      functionDecl(unless(matchesAttr(KF_Regex)),
+                   unless(isExpansionInSystemHeader()), AllowedFuncMatch);
+  auto notKCalls = callExpr(callee(notKFunc)).bind("CE");
+
+  auto BadCalls = match(functionDecl(forEachDescendant(notKCalls)), *FD,
+                        FD->getASTContext());
+
+  for (auto BadCall : BadCalls) {
+    auto const *CE = BadCall.getNodeAs<CallExpr>("CE");
+    if (!CE) {
+      continue;
+    }
+
+    if(auto const* CMD = dyn_cast<CXXMethodDecl>(CE->getDirectCallee())){
+      if(auto const* Parent = CMD->getParent()){
+        if(Parent->isLambda()){
+          continue;
+        }
+      }
+    }
+
+    BadCallSet.insert(CE);
+  }
+
+  return BadCallSet;
 }
 
 // Recurses through the tree of all calls to functions with visble bodies
@@ -89,7 +105,7 @@ void recurseCallExpr(
   }
 }
 
-// Find methods from our functor called in the tree of Kokkos::parallel_x 
+// Find methods from our functor called in the tree of Kokkos::parallel_x
 auto checkFunctorBody(CXXRecordDecl const *Functor, CallExpr const *CallSite) {
   llvm::SmallPtrSet<CXXMethodDecl const *, 8> FunctorMethods;
   for (auto const *Method : Functor->methods()) {
@@ -170,11 +186,14 @@ void EnsureKokkosFunctionCheck::check(const MatchFinder::MatchResult &Result) {
     }
 
     if (Functor->isLambda()) {
-      auto const *BadCall = checkLambdaBody(Functor, AllowedFunctionsRegex);
-      if (BadCall) {
+      auto BadCalls = checkLambdaBody(Functor, AllowedFunctionsRegex);
+      for (auto const *BadCall : BadCalls) {
         diag(BadCall->getBeginLoc(),
              "Function %0 called in a lambda was missing "
              "KOKKOS_X_FUNCTION annotation.")
+            << BadCall->getDirectCallee();
+        diag(BadCall->getDirectCallee()->getBeginLoc(),
+             "Function %0 was delcared here", DiagnosticIDs::Note)
             << BadCall->getDirectCallee();
       }
     } else {
