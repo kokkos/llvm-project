@@ -3,4 +3,5 @@
 kokkos-ensure-kokkos-function
 =============================
 
-FIXME: Describe what patterns does the check detect and why. Give examples.
+This check ensures that the user has annotated functions called by Kokkos with 
+one of the KOKKOS_FUNCTION style annotations.
