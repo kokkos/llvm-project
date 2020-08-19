@@ -1,5 +1,9 @@
 //===--- EnsureKokkosFunctionCheck.cpp - clang-tidy -----------------------===//
 //
+// Copyright 2020 National Technology & Engineering Solutions of Sandia,
+// LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the U.S.
+// Government retains certain rights in this software.
+//
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
@@ -182,7 +186,7 @@ void EnsureKokkosFunctionCheck::check(const MatchFinder::MatchResult &Result) {
 
   if (Functor != nullptr) {
     auto const *CE = Result.Nodes.getNodeAs<CallExpr>("KokkosCE");
-    if (AllowIfExplicitHost != 0 && explicitDefaultHostExecutionSpace(CE)) {
+    if (AllowIfExplicitHost != 0 && explicitlyDefaultHostExecutionSpace(CE)) {
       return;
     }
 

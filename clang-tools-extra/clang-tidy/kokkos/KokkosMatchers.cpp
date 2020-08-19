@@ -50,7 +50,7 @@ bool isMatchingAnnotation(Attr const *At, std::string const &target) {
 }
 } // namespace
 
-bool explicitDefaultHostExecutionSpace(CallExpr const *CE) {
+bool explicitlyDefaultHostExecutionSpace(CallExpr const *CE) {
   using namespace clang::ast_matchers;
   auto &Ctx = CE->getCalleeDecl()->getASTContext();
 
