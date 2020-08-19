@@ -1,14 +1,13 @@
-// RUN: %check_clang_tidy %s kokkos-ensure-kokkos-function %t
+// RUN: %check_clang_tidy %s kokkos-ensure-kokkos-function %t -- -header-filter=.* -system-headers -- -isystem %S/Inputs/kokkos/
 
-// FIXME: Add something that triggers the check here.
-void f();
-// CHECK-MESSAGES: :[[@LINE-1]]:6: warning: function 'f' is insufficiently awesome [kokkos-ensure-kokkos-function]
+#include "Kokkos_Core_mock.h"
 
-// FIXME: Verify the applied fix.
-//   * Make the CHECK patterns specific enough and try to make verified lines
-//     unique to avoid incorrect matches.
-//   * Use {{}} for regular expressions.
-// CHECK-FIXES: {{^}}void awesome_f();{{$}}
+KOKKOS_FUNCTION void legal(){}
+
+void foo(){}
+KOKKOS_FUNCTION void f(){foo();}
+// CHECK-MESSAGES: :[[@LINE-1]]:26: warning: function 'foo' called in 'f' is missing a KOKKOS_X_FUNCTION annotation [kokkos-ensure-kokkos-function]
+
 
 // FIXME: Add something that doesn't trigger the check here.
-void awesome_f2();
+KOKKOS_FUNCTION void awesome_f2(){legal();}
