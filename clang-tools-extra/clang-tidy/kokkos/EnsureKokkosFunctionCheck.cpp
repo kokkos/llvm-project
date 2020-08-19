@@ -21,13 +21,7 @@ namespace {
 std::string KF_Regex = "KOKKOS_.*FUNCTION"; // NOLINT
 
 auto notKFunc(std::string const &AllowedFuncRegex) {
-  auto AllowedFuncMatch = [AFR = AllowedFuncRegex] {
-    if (AFR.empty()) {
-      return unless(matchesName("a^")); // Never match anything
-    }
-    return unless(matchesName(AFR));
-  }();
-
+  auto AllowedFuncMatch = unless(matchesName(AllowedFuncRegex));
   return functionDecl(unless(matchesAttr(KF_Regex)),
                       unless(isExpansionInSystemHeader()), AllowedFuncMatch);
 }
@@ -134,7 +128,9 @@ EnsureKokkosFunctionCheck::EnsureKokkosFunctionCheck(StringRef Name,
                                                      ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context) {
   AllowIfExplicitHost = std::stoi(Options.get("AllowIfExplicitHost", "0"));
-  AllowedFunctionsRegex = Options.get("AllowedFunctionsRegex", "");
+  AllowedFunctionsRegex = Options.get("AllowedFunctionsRegex", "a^");
+  // This can't be empty because the regex ast matchers assert !empty
+  assert(!AllowedFunctionsRegex.empty());
 }
 
 void EnsureKokkosFunctionCheck::storeOptions(
