@@ -1,4 +1,4 @@
-// RUN: %check_clang_tidy %s kokkos-implicit-this-capture %t -- -config="{CheckOptions: [{key: kokkos-implicit-this-capture.CheckIfExplicitHost, value: 1}]}" -header-filter=.* -system-headers -- -isystem %S/Inputs/kokkos/
+// RUN: %check_clang_tidy %s kokkos-implicit-this-capture %t -- -config="{CheckOptions: [{key: kokkos-implicit-this-capture.AllowIfExplicitHost, value: 1}]}" -header-filter=.* -system-headers -- -isystem %S/Inputs/kokkos/
 
 #include "Kokkos_Core_mock.h"
 

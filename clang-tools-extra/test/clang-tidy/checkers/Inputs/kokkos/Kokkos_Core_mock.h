@@ -85,14 +85,14 @@ namespace Impl {
 struct SomeHostExecutionSpace {};
 
 template <typename... Properties>
-struct PolicyTraits{};
+struct PolicyTraits {};
 } // namespace Impl
 
-using DefaultExecutionSpace = Impl::SomeHostExecutionSpace;
-using DefaultHostExecutionSpace = Impl::SomeHostExecutionSpace;
+using DefaultExecutionSpace [[clang::annotate("DefaultExecutionSpace")]] = Impl::SomeHostExecutionSpace;
+using DefaultHostExecutionSpace [[clang::annotate("DefaultHostExecutionSpace")]] = Impl::SomeHostExecutionSpace;
 
 template <class... Properties>
-class RangePolicy : public Impl::PolicyTraits<Properties...>{
+class RangePolicy : public Impl::PolicyTraits<Properties...> {
 public:
   RangePolicy(int, int) {}
 };

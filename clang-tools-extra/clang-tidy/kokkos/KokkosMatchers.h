@@ -42,9 +42,13 @@ AST_MATCHER(CallExpr, isKokkosParallelCall) {
   return false;
 }
 
-bool explicitlyUsingHostExecutionSpace(CallExpr const *CE,
-                                       std::string const &RegexString);
+bool matchesAnnotation(Decl const* D, std::string const& RegExp);
 
+AST_MATCHER_P(Decl, matchesAttr, std::string, RegExp) {
+  return matchesAnnotation(&Node, RegExp);
+}
+
+bool explicitlyDefaultHostExecutionSpace(CallExpr const *CE);
 } // namespace kokkos
 } // namespace tidy
 } // namespace clang

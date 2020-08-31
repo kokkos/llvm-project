@@ -120,6 +120,12 @@ New checks
   Flags use of the `C` standard library functions ``memset``, ``memcpy`` and
   ``memcmp`` and similar derivatives on non-trivial types.
 
+- New :doc:`kokkos-ensure-kokkos-function
+  <clang-tidy/checks/kokkos-ensure-kokkos-function>` check.
+
+  Check to ensure that a function called in a Kokkos parallel region is
+  annotated with ``KOKKOS_FUNCTION``
+
 - New :doc:`kokkos-implicit-this-capture
   <clang-tidy/checks/kokkos-implicit-this-capture>` check.
 
