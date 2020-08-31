@@ -150,7 +150,7 @@ void EnsureKokkosFunctionCheck::registerMatchers(MatchFinder *Finder) {
 
   // We have to be sure that we don't match functionDecls in systems headers,
   // because they might call our Functor, which if it is a lambda will not be
-  // marked with KOKKOS_FUNCITON
+  // marked with KOKKOS_FUNCTION
   Finder->addMatcher(functionDecl(matchesAttr(KF_Regex),
                                   unless(isExpansionInSystemHeader()),
                                   forEachDescendant(notKCalls))
@@ -207,9 +207,13 @@ void EnsureKokkosFunctionCheck::check(const MatchFinder::MatchResult &Result) {
           continue;
         }
 
-        diag(CalledMethod->getBeginLoc(), "Member Function of %0, requires a "
-                                          "KOKKOS_X_FUNCTION annotation.")
+        diag(CE->getBeginLoc(),
+             "Called a member function of %0 that requires a "
+             "KOKKOS_X_FUNCTION annotation.")
             << CalledMethod->getParent();
+        diag(CalledMethod->getBeginLoc(),
+             "Member Function %0 of %1 was delcared here", DiagnosticIDs::Note)
+            << CalledMethod << CalledMethod->getParent();
       }
     }
   }

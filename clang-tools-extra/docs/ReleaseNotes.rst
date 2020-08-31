@@ -124,7 +124,7 @@ New checks
   <clang-tidy/checks/kokkos-ensure-kokkos-function>` check.
 
   Check to ensure that a function called in a Kokkos parallel region is
-  annoated with ``KOKKOS_FUNCTION``
+  annotated with ``KOKKOS_FUNCTION``
 
 - New :doc:`kokkos-implicit-this-capture
   <clang-tidy/checks/kokkos-implicit-this-capture>` check.

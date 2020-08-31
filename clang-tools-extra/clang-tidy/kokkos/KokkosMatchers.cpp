@@ -38,17 +38,21 @@ TypedefNameDecl const *getTypedefFromFirstTemplateArg(Expr const *E) {
   auto const *TDD = dyn_cast_or_null<TypedefNameDecl>(TDT->getDecl());
   return TDD;
 }
+} // namespace
 
-bool isMatchingAnnotation(Attr const *At, std::string const &target) {
-  if (auto const *Anna = dyn_cast<AnnotateAttr>(At)) {
-    if (Anna->getAnnotation() == target) {
-      return true;
+bool matchesAnnotation(Decl const *D, std::string const &RegExp) {
+  assert(!RegExp.empty());
+  llvm::Regex Re(RegExp);
+  for (auto const *Attr : D->attrs()) {
+    if (auto const *Anna = dyn_cast<AnnotateAttr>(Attr)) {
+      if (Re.match(Anna->getAnnotation())) {
+        return true;
+      }
     }
   }
-
   return false;
 }
-} // namespace
+
 
 bool explicitlyDefaultHostExecutionSpace(CallExpr const *CE) {
   using namespace clang::ast_matchers;
@@ -71,11 +75,7 @@ bool explicitlyDefaultHostExecutionSpace(CallExpr const *CE) {
   for (auto &BN : BNs) {
     if (auto const *TDD =
             getTypedefFromFirstTemplateArg(BN.getNodeAs<Expr>("expr"))) {
-      for (auto const *At : TDD->attrs()) {
-        if (isMatchingAnnotation(At, "DefaultHostExecutionSpace")) {
-          return true;
-        }
-      }
+      return matchesAnnotation(TDD, "DefaultHostExecutionSpace");
     }
   }
 
